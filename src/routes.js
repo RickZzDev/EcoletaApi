@@ -1,7 +1,12 @@
 
+
 const express  = require('express')
 const knex  = require('./database/connection')
 const routes = express.Router()
+const multer = require('multer')
+const multerConfig = require('./config/multer')
+
+const upload = multer(multerConfig)
 
 routes.get('/items',async (request,response)=>{
     const items = await knex('items').select('*')
@@ -19,7 +24,7 @@ routes.get('/items',async (request,response)=>{
 
 
 
-routes.post('/points', async (request,response)=>{
+routes.post('/points',upload.single('image') , async (request,response)=>{
     const {
         name,
         email,
@@ -31,9 +36,11 @@ routes.post('/points', async (request,response)=>{
         items
     }
      = request.body;
+
      
+
      const point = {
-        image: 'https://images.unsplash.com/photo-1580913428023-02c695666d61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60',
+        image: request.file.originalname,
         name,
         email,
         whatsapp,
@@ -49,7 +56,9 @@ routes.post('/points', async (request,response)=>{
 
      const point_id = insertedIds[0]
 
-     const pointItems = items.map(item_id=>{
+     const pointItems = items.split(',')
+     .map(item=>item.trim())
+     .map(item_id=>{
          return {
              item_id,
              point_id : insertedIds[0]
@@ -83,8 +92,14 @@ routes.get('/points', async(request,response)=>{
      .where('city', String(city))
      .distinct()
      .select('points.*')
+
+   
+     const serializedPoints = {
+        ...point,
+        image_url:`http://192.168.0.13:3333/uploads/${point.image}`
+    }
  
-     return response.json(points)
+     return response.json(serializedPoints)
  })
 
  routes.get('/points/all',async (request,response)=>{
@@ -124,7 +139,13 @@ routes.get('/points/:id', async(request,response)=>{
     .join('point_items', 'items.id', '=','point_items.item_id')
     .where('point_items.point_id', id)
     .select('items.title')
-    return response.json({point, items})
+
+    const serializedPoints = {
+        ...point,
+        image_url:`http://192.168.0.13:3333/uploads/${point.image}`
+    }
+
+    return response.json({serializedPoints, items})
 })
 
 
